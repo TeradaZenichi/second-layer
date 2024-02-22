@@ -1,0 +1,7 @@
+pandas
+flask_restx==1.0.5
+flask==2.3.3
+uwsgi
+certifi
+mysql-connector-python
+python-dateutil

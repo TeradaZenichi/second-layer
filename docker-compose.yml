@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: zenichi/second-layer-mysql:latest
+    build: ./mysql
+    restart: always
+    env_file:
+      - 'data/env.sql'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+
+  phpmyadmin:
+    image: zenichi/second-layer-phpmyadmin:latest
+    build: ./phpmyadmin
+    ports:
+      - "80:80"
+    env_file:   
+      - 'data/env.php'
+
+
+  python:
+    image: zenichi/second-layer-python:latest
+    build: ./python
+    restart: always
+    expose: 
+      - 8081
+    env_file:
+      - 'data/env.python'
+    volumes:
+      - python_data:/var/lib/python
+
+  nginx:
+    image: zenichi/second-layer-nginx:latest
+    build: ./nginx
+    restart: always
+    ports:
+      - "8080:8080"
+
+
+volumes:
+  mysql_data:
+  python_data:
