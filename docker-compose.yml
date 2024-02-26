@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   mysql:
-    image: zenichi/second-layer-mysql:latest
+    image: zenichi/second-layer-mysql:0.0.1-beta
     build: ./mysql
     restart: always
     env_file:
@@ -14,7 +14,7 @@ services:
 
 
   phpmyadmin:
-    image: zenichi/second-layer-phpmyadmin:latest
+    image: zenichi/second-layer-phpmyadmin:0.0.1-beta
     build: ./phpmyadmin
     ports:
       - "80:80"
@@ -23,7 +23,7 @@ services:
 
 
   python:
-    image: zenichi/second-layer-python:latest
+    image: zenichi/second-layer-python:0.0.1-beta
     build: ./python
     restart: always
     expose: 
@@ -34,7 +34,7 @@ services:
       - python_data:/var/lib/python
 
   nginx:
-    image: zenichi/second-layer-nginx:latest
+    image: zenichi/second-layer-nginx:0.0.1-beta
     build: ./nginx
     restart: always
     ports:
