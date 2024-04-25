@@ -1,2 +1,0 @@
-PMA_HOST: mysql
-MYSQL_ROOT_PASSWORD: merge2023

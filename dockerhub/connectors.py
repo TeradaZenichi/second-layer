@@ -1,7 +1,5 @@
 from flask_restx import Namespace, Resource, fields
 from data import check
-import mysql.connector
-import os
 
 
 # Namespace para Connectors

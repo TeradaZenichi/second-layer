@@ -25,61 +25,135 @@ def initialize_tables():
     if not cursor.fetchone():
         cursor.execute("""
         CREATE TABLE setup (
-            id VARCHAR(255) NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
-            Pmax FLOAT NOT NULL,
-            PRIMARY KEY (id)
+            Pmax FLOAT NOT NULL CHECK (Pmax > 0),
+            Vnom FLOAT NOT NULL CHECK (Vnom > 0),
+            controllable ENUM('none', 'hourly', 'voltage') NOT NULL
         )
         """)
         print("Tabela 'setup' criada com sucesso!")
     else:
         print("Tabela 'setup' já existe.")
-
-    # Tabela "device"
-    cursor.execute("SHOW TABLES LIKE 'device'")
+    
+        # Tabela "EVCS"
+    cursor.execute("SHOW TABLES LIKE 'EVCS'")
     if not cursor.fetchone():
         cursor.execute("""
-        CREATE TABLE device (
+        CREATE TABLE EVCS (
             id VARCHAR(255) NOT NULL,
             name VARCHAR(255) NOT NULL,
-            Pmax FLOAT NOT NULL,
-            Vnom FLOAT NOT NULL,
-            Inom FLOAT NOT NULL,
-            NDC INT NOT NULL,
-            NAC INT NOT NULL,
-            setup_id VARCHAR(255) NOT NULL,
+            setup_id INT NOT NULL,
+            nconn INT NOT NULL CHECK (nconn IN (1, 2, 3)),
+            control ENUM('none', 'power', 'current') NOT NULL,
+            conn1_type ENUM('AC', 'DC'),
+            conn1_Pmax FLOAT CHECK (conn1_Pmax > 0),
+            conn1_Vnom FLOAT CHECK (conn1_Vnom > 0),
+            conn1_Imax FLOAT CHECK (conn1_Imax > 0),
+            conn2_type ENUM('AC', 'DC'),
+            conn2_Pmax FLOAT CHECK (conn2_Pmax > 0),
+            conn2_Vnom FLOAT CHECK (conn2_Vnom > 0),
+            conn2_Imax FLOAT CHECK (conn2_Imax > 0),
+            conn3_type ENUM('AC', 'DC'),
+            conn3_Pmax FLOAT CHECK (conn3_Pmax > 0),
+            conn3_Vnom FLOAT CHECK (conn3_Vnom > 0),
+            conn3_Imax FLOAT CHECK (conn3_Imax > 0),
             PRIMARY KEY (id),
             FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
         )
         """)
-        print("Tabela 'device' criada com sucesso!")
-    else:
-        print("Tabela 'device' já existe.")
+        print("Tabela 'EVCS' criada com sucesso!")
 
-    # Tabela "connector"
-    cursor.execute("SHOW TABLES LIKE 'connector'")
+        # Criando os gatilhos para garantir a consistência dos dados com base em nconn
+        cursor.execute("""
+        CREATE TRIGGER before_insert_EVCS BEFORE INSERT ON EVCS
+        FOR EACH ROW
+        BEGIN
+            IF NEW.nconn = 1 THEN
+                IF NEW.conn2_type IS NOT NULL OR NEW.conn3_type IS NOT NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only conn1 should be filled when nconn is 1.';
+                END IF;
+            ELSEIF NEW.nconn = 2 THEN
+                IF NEW.conn1_type IS NULL OR NEW.conn2_type IS NULL OR NEW.conn3_type IS NOT NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only conn1 and conn2 should be filled when nconn is 2.';
+                END IF;
+            ELSEIF NEW.nconn = 3 THEN
+                IF NEW.conn1_type IS NULL OR NEW.conn2_type IS NULL OR NEW.conn3_type IS NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'conn1, conn2, and conn3 must all be filled when nconn is 3.';
+                END IF;
+            END IF;
+        END;
+        """)
+        print("Gatilhos para a tabela 'EVCS' criados com sucesso!")
+    else:
+        print("Tabela 'EVCS' já existe.")
+
+    # Tabela "BESS"
+    cursor.execute("SHOW TABLES LIKE 'BESS'")
     if not cursor.fetchone():
         cursor.execute("""
-        CREATE TABLE IF NOT EXISTS connector (
-            number INT NOT NULL,
+        CREATE TABLE BESS (
+            id VARCHAR(255) NOT NULL,
             name VARCHAR(255) NOT NULL,
-            type VARCHAR(255) NOT NULL,
-            Pmax FLOAT NOT NULL,
-            Emax FLOAT NOT NULL,
-            Imax FLOAT NOT NULL,
-            Vnom FLOAT NOT NULL,
-            eff FLOAT NOT NULL,
-            device_id VARCHAR(255) NOT NULL,
-            PRIMARY KEY (number, device_id),  -- Fazendo 'number' e 'device_id' uma chave primária composta
-            FOREIGN KEY (device_id) REFERENCES device(id) ON DELETE CASCADE,
-            UNIQUE (number, device_id)  -- Garantindo que a combinação de 'number' e 'device_id' seja única
-        );
+            setup_id INT NOT NULL,
+            eff FLOAT NOT NULL CHECK (eff >= 0 AND eff <= 1),
+            Pmax FLOAT NOT NULL CHECK (Pmax > 0),
+            Emax FLOAT NOT NULL CHECK (Emax > 0),
+            PRIMARY KEY (id),
+            FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
+        )
         """)
-        print("Tabela 'connector' criada com sucesso!")
+        print("Tabela 'BESS' criada com sucesso!")
     else:
-        print("Tabela 'connector' já existe.")
+        print("Tabela 'BESS' já existe.")
 
-    # Fechar a conexão com o banco de dados
+    # Tabela "PV"
+    cursor.execute("SHOW TABLES LIKE 'PV'")
+    if not cursor.fetchone():
+        cursor.execute("""
+        CREATE TABLE PV (
+            id VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            setup_id INT NOT NULL,
+            eff FLOAT NOT NULL CHECK (eff >= 0 AND eff <= 1),
+            Pmax FLOAT NOT NULL CHECK (Pmax > 0),
+            PRIMARY KEY (id),
+            FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
+        )
+        """)
+        print("Tabela 'PV' criada com sucesso!")
+    else:
+        print("Tabela 'PV' já existe.")
+
+    # Criação da tabela "TimeConfig"
+    cursor.execute("SHOW TABLES LIKE 'TimeConfig'")
+    if not cursor.fetchone():
+        cursor.execute("""
+        CREATE TABLE TimeConfig (
+            id INT PRIMARY KEY,
+            URL VARCHAR(255) NOT NULL,
+            timestep INT NOT NULL,
+            tmin_d VARCHAR(5) NOT NULL,
+            tmax_d VARCHAR(5) NOT NULL,
+            tmin_c VARCHAR(5) NOT NULL,
+            tmax_c VARCHAR(5) NOT NULL,
+            UNIQUE (URL, timestep)
+        )
+        """)
+        print("Tabela 'TimeConfig' criada com sucesso!")
+        # Inserir valores pré-definidos
+        cursor.execute("""
+        INSERT INTO TimeConfig (id, URL, timestep, tmin_d, tmax_d, tmin_c, tmax_c) VALUES
+        (1, 'https://cs3060.cpqd.com.br/cpqd-manager/rest/containers/deviceHistory/processes/deviceHistory.deviceHistory/variables/Result', 
+        5, '18:00', '21:00', '03:00', '05:00')
+        """)
+        mydb.commit()
+        print("Dados inseridos com sucesso na tabela 'TimeConfig'.")
+    else:
+        print("Tabela 'TimeConfig' já existe.")
+
+    # close the connection
+    cursor.close()
     mydb.close()
 
 

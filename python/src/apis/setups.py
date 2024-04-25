@@ -1,18 +1,32 @@
-from flask_restx import Resource, fields, Namespace
+from flask_restx import Resource, fields, Namespace, reqparse, abort
 from data import check
 
 api = Namespace('setups', description='Setup related operations')
 
 setup_model = api.model('Setup', {
-    'id': fields.String(required=True, description='The setup identifier'),
+    'id': fields.Integer(readOnly=True, description='The setup identifier'),
     'name': fields.String(required=True, description='The setup name'),
-    'Pmax': fields.Float(required=True, description='The maximum power')
+    'Pmax': fields.Float(required=True, description='The maximum power'),
+    'Vnom': fields.Float(required=True, description='The nominal voltage'),
+    'controllable': fields.String(required=True, description='Controllability type')
 })
 
 setup_update_model = api.model('SetupUpdate', {
     'name': fields.String(required=False, description='The setup name'),
-    'Pmax': fields.Float(required=False, description='The maximum power')
+    'Pmax': fields.Float(required=False, description='The maximum power'),
+    'Vnom': fields.Float(required=False, description='The nominal voltage'),
+    'controllable': fields.String(required=False, description='Controllability type')
 })
+
+def validate_setup(data):
+    errors = []
+    if 'Pmax' in data and (data['Pmax'] <= 0):
+        errors.append("Pmax must be a positive float.")
+    if 'Vnom' in data and (data['Vnom'] <= 0):
+        errors.append("Vnom must be a positive float.")
+    if 'controllable' in data and data['controllable'] not in ['none', 'hourly', 'voltage']:
+        errors.append("Controllable must be one of the following: 'none', 'hourly', 'voltage'.")
+    return errors
 
 @api.route('/')
 class SetupList(Resource):
@@ -32,31 +46,29 @@ class SetupList(Resource):
     @api.marshal_with(setup_model, code=201)
     def post(self):
         '''Create a new setup'''
+        setup = api.payload
+        
+        # Validate setup data
+        errors = validate_setup(setup)
+        if errors:
+            abort(400, ". ".join(errors))
+        
         check.initialize_tables()
         db_connection = check.get_db_connection()
         cursor = db_connection.cursor(dictionary=True)
-        
-        setup = api.payload
-        # Verificar se já existe um setup com o mesmo id
-        cursor.execute("SELECT id FROM setup WHERE id = %s", (setup['id'],))
-        existing_setup = cursor.fetchone()
-        
-        if existing_setup:
-            cursor.close()
-            db_connection.close()
-            api.abort(409, f"A setup with id {setup['id']} already exists.")
-        
-        # Se não existir, inserir o novo setup
-        cursor.execute("INSERT INTO setup (id, name, Pmax) VALUES (%s, %s, %s)",
-                    (setup['id'], setup['name'], setup['Pmax']))
+        cursor.execute("INSERT INTO setup (name, Pmax, Vnom, controllable) VALUES (%s, %s, %s, %s)",
+                       (setup['name'], setup['Pmax'], setup['Vnom'], setup['controllable']))
         db_connection.commit()
+        
+        new_id = cursor.lastrowid
+        setup['id'] = new_id
         
         cursor.close()
         db_connection.close()
         
         return setup, 201
 
-@api.route('/<id>')
+@api.route('/<int:id>')
 @api.param('id', 'The setup identifier')
 @api.response(404, 'Setup not found')
 class Setup(Resource):
@@ -72,15 +84,20 @@ class Setup(Resource):
         db_connection.close()
         if setup:
             return setup
-        api.abort(404)
+        abort(404)
 
     @api.expect(setup_update_model)
-    @api.marshal_with(setup_update_model)
+    @api.marshal_with(setup_model)
     def put(self, id):
         '''Update a setup given its identifier, allowing partial updates'''
-        setup = api.payload  # Dados fornecidos para a atualização
+        setup = api.payload
+        
+        # Validate setup data
+        errors = validate_setup(setup)
+        if errors:
+            abort(400, ". ".join(errors))
 
-        # Construir a string SQL dinamicamente com base nos campos fornecidos
+        # Construct SQL dynamically based on provided fields
         update_fields = []
         update_values = []
         for field, value in setup.items():
@@ -88,27 +105,28 @@ class Setup(Resource):
             update_values.append(value)
 
         if not update_fields:
-            api.abort(400, "No fields provided for update")
+            abort(400, "No fields provided for update")
 
         update_query = f"UPDATE setup SET {', '.join(update_fields)} WHERE id = %s"
-        update_values.append(id)  # Adiciona o id ao final da lista de valores para a cláusula WHERE
+        update_values.append(id)  # Adds the id at the end of the values list for the WHERE clause
 
-        # Conectar ao banco de dados e executar a operação de atualização
+        # Connect to the database and execute the update operation
+        check.initialize_tables()
         db_connection = check.get_db_connection()
         cursor = db_connection.cursor(dictionary=True)
         cursor.execute(update_query, tuple(update_values))
         db_connection.commit()
 
-        # Verificar se a operação de atualização afetou alguma linha (ou seja, se o id fornecido existe)
+        # Check if the update operation affected any rows (i.e., if the provided id exists)
         if cursor.rowcount == 0:
             cursor.close()
             db_connection.close()
-            api.abort(404, f"Setup with id {id} not found")
+            abort(404, f"Setup with id {id} not found")
 
         cursor.close()
         db_connection.close()
 
-        return {**setup, "id": id}, 200
+        return setup, 200
 
 
     @api.response(204, 'Setup successfully deleted.')
@@ -118,26 +136,26 @@ class Setup(Resource):
         db_connection = check.get_db_connection()
         cursor = db_connection.cursor(dictionary=True)
         
-        # Primeiro, verificar se o setup existe
+        # First, verify the setup exists
         cursor.execute("SELECT id FROM setup WHERE id = %s", (id,))
         setup = cursor.fetchone()
         
         if not setup:
-            # Se não existir, abortar com um erro 404
+            # If it does not exist, abort with a 404 error
             cursor.close()
             db_connection.close()
-            api.abort(404, f"Setup with id {id} not found.")
+            abort(404, f"Setup with id {id} not found.")
         
-        # Se existir, proceder com a exclusão
+        # If it exists, proceed with deletion
         cursor.execute("DELETE FROM setup WHERE id = %s", (id,))
         db_connection.commit()
         
-        # Verificar se a operação de exclusão afetou alguma linha
+        # Verify if the deletion operation affected any rows
         if cursor.rowcount == 0:
-            # Se nenhuma linha foi afetada, o setup não foi excluído (isso deve ser redundante devido à verificação anterior)
+            # If no rows were affected, the setup was not deleted (this should be redundant due to previous check)
             cursor.close()
             db_connection.close()
-            api.abort(404, f"Setup with id {id} not found or could not be deleted.")
+            abort(404, f"Setup with id {id} not found or could not be deleted.")
         
         cursor.close()
         db_connection.close()

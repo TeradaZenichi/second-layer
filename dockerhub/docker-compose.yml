@@ -2,55 +2,60 @@ version: '3.8'
 
 services:
   mysql:
-    image: zenichi/second-layer-mysql:2.0.1
-    build: ./mysql
+    image: zenichi/second-layer-mysql:1.0.2-beta
     restart: always
     environment:
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_DATABASE=${MYSQL_DATABASE_MYDATABASE}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "43306:3306"
+    networks:
+    - cpqd-network  
 
   phpmyadmin:
-    image: zenichi/second-layer-phpmyadmin:2.0.1
-    build: ./phpmyadmin
+    image: zenichi/second-layer-phpmyadmin:1.0.2-beta
     ports:
       - "4080:80"
     environment:
-      - PMA_HOST={MYSQL_HOST}
+      - PMA_HOST={PMA_HOST}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     depends_on:
       - mysql
- 
+    networks:
+    - cpqd-network  
 
   python:
-    image: zenichi/second-layer-python:2.0.1
-    build: ./python
+    image: zenichi/second-layer-python:1.0.2-beta
     restart: always
     expose: 
-      - 8081
+      - 48081
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_DATABASE=${MYSQL_DATABASE_MYDATABASE}
       - MYSQL_HOST=${MYSQL_HOST}
     volumes:
       - python_data:/var/lib/python
     depends_on:
       - mysql
- 
+    networks:
+    - cpqd-network  
 
   nginx:
-    image: zenichi/second-layer-nginx:2.0.1
-    build: ./nginx
+    image: zenichi/second-layer-nginx:1.0.2-beta
     restart: always
     ports:
       - "48080:8080"
     depends_on:
       - python
-  
+    networks:
+    - cpqd-network  
 
 volumes:
   mysql_data:
   python_data:
+
+networks:
+  cpqd-network:
+    external: true
