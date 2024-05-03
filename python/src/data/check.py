@@ -36,7 +36,7 @@ def initialize_tables():
     else:
         print("Tabela 'setup' já existe.")
     
-        # Tabela "EVCS"
+    # Tabela "EVCS"
     cursor.execute("SHOW TABLES LIKE 'EVCS'")
     if not cursor.fetchone():
         cursor.execute("""
@@ -87,6 +87,59 @@ def initialize_tables():
         print("Gatilhos para a tabela 'EVCS' criados com sucesso!")
     else:
         print("Tabela 'EVCS' já existe.")
+
+    # Tabela V2G EVCS
+    cursor.execute("SHOW TABLES LIKE 'V2G'")
+    if not cursor.fetchone():
+        # Create the V2G table with corrected check constraints
+        cursor.execute("""
+        CREATE TABLE V2G (
+            id VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            setup_id INT NOT NULL,
+            nconn INT NOT NULL CHECK (nconn IN (1, 2, 3)),
+            control ENUM('none', 'power', 'current') NOT NULL,
+            conn1_type ENUM('AC', 'DC'),
+            conn1_Pmax FLOAT CHECK (conn1_Pmax > 0),
+            conn1_Vnom FLOAT CHECK (conn1_Vnom > 0),
+            conn1_Imax FLOAT CHECK (conn1_Imax > 0),
+            conn2_type ENUM('AC', 'DC'),
+            conn2_Pmax FLOAT CHECK (conn2_Pmax > 0),
+            conn2_Vnom FLOAT CHECK (conn2_Vnom > 0),
+            conn2_Imax FLOAT CHECK (conn2_Imax > 0),
+            conn3_type ENUM('AC', 'DC'),
+            conn3_Pmax FLOAT CHECK (conn3_Pmax > 0),
+            conn3_Vnom FLOAT CHECK (conn3_Vnom > 0),
+            conn3_Imax FLOAT CHECK (conn3_Imax > 0),
+            PRIMARY KEY (id),
+            FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
+        )""")
+        print("Tabela 'V2G' criada com sucesso!")
+
+        # Creating triggers to ensure data consistency based on nconn
+        cursor.execute("""
+        CREATE TRIGGER before_insert_V2G BEFORE INSERT ON V2G
+        FOR EACH ROW
+        BEGIN
+            IF NEW.nconn = 1 THEN
+                IF NEW.conn2_type IS NOT NULL OR NEW.conn3_type IS NOT NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only conn1 should be filled when nconn is 1.';
+                END IF;
+            ELSEIF NEW.nconn = 2 THEN
+                IF NEW.conn1_type IS NULL OR NEW.conn2_type IS NULL OR NEW.conn3_type IS NOT NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only conn1 and conn2 should be filled when nconn is 2.';
+                END IF;
+            ELSEIF NEW.nconn = 3 THEN
+                IF NEW.conn1_type IS NULL OR NEW.conn2_type IS NULL OR NEW.conn3_type IS NULL THEN
+                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'conn1, conn2, and conn3 must all be filled when nconn is 3.';
+                END IF;
+            END IF;
+        END;
+        """)
+        print("Gatilhos para a tabela 'V2G' criados com sucesso!")
+    else:
+        print("Tabela 'V2G' já existe.")
+        
 
     # Tabela "BESS"
     cursor.execute("SHOW TABLES LIKE 'BESS'")
