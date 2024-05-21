@@ -7,7 +7,7 @@ def create_setup():
     """Cria um setup e retorna o ID gerado."""
     setup_data = {
         "name": "sistema_teste",
-        "Pmax": 70,
+        "Pmax": 13,
         "Vnom": 220,
         "controllable": "none"
     }
@@ -35,21 +35,21 @@ if __name__ == '__main__':
         "name": "ABBTACW745020G0166",
         "nconn": 1,
         "control": "current",
-        "conn1_type": "DC",
-        "conn1_Pmax": 50,
+        "conn1_type": "AC",
+        "conn1_Pmax": 7,
         "conn1_Vnom": 220,
-        "conn1_Imax": 125
+        "conn1_Imax": 32
     }
 
     evcs2_data = {
-        "id": "146b36",
-        "name": "EPPARREIRA",
+        "id": "846059",
+        "name": "ELEBB04023Z015",
         "nconn": 1,
         "control": "current",
-        "conn1_type": "DC",
-        "conn1_Pmax": 50,
+        "conn1_type": "AC",
+        "conn1_Pmax": 7,
         "conn1_Vnom": 220,
-        "conn1_Imax": 125
+        "conn1_Imax": 32
     }
 
     # Criação dos dispositivos EVCS associados ao setup
