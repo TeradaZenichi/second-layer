@@ -33,8 +33,7 @@ def initialize_tables():
         )
         """)
         print("Tabela 'setup' criada com sucesso!")
-    else:
-        print("Tabela 'setup' já existe.")
+    
     
     # Tabela "EVCS"
     cursor.execute("SHOW TABLES LIKE 'EVCS'")
@@ -85,8 +84,7 @@ def initialize_tables():
         END;
         """)
         print("Gatilhos para a tabela 'EVCS' criados com sucesso!")
-    else:
-        print("Tabela 'EVCS' já existe.")
+   
 
     # Tabela V2G EVCS
     cursor.execute("SHOW TABLES LIKE 'V2G'")
@@ -137,9 +135,6 @@ def initialize_tables():
         END;
         """)
         print("Gatilhos para a tabela 'V2G' criados com sucesso!")
-    else:
-        print("Tabela 'V2G' já existe.")
-        
 
     # Tabela "BESS"
     cursor.execute("SHOW TABLES LIKE 'BESS'")
@@ -157,8 +152,7 @@ def initialize_tables():
         )
         """)
         print("Tabela 'BESS' criada com sucesso!")
-    else:
-        print("Tabela 'BESS' já existe.")
+   
 
     # Tabela "PV"
     cursor.execute("SHOW TABLES LIKE 'PV'")
@@ -202,9 +196,7 @@ def initialize_tables():
         """)
         mydb.commit()
         print("Dados inseridos com sucesso na tabela 'TimeConfig'.")
-    else:
-        print("Tabela 'TimeConfig' já existe.")
-
+   
     # close the connection
     cursor.close()
     mydb.close()

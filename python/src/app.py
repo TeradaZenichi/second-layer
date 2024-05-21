@@ -13,9 +13,10 @@ api.init_app(app)
 def print_ok(num):
     print("OK", num, datetime.now())
 
-@cron(-1, -1, -1, -1, -1)
+@cron(-5, -1, -1, -1, -1)
 def print_opt(num):
-    print(opt.status(), num, datetime.now())
+    print('Running optimization', num, datetime.now())
+    opt.cron_function()
 
 
 if __name__ == '__main__':
