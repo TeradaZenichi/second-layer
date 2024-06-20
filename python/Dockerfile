@@ -1,5 +1,5 @@
 FROM python:3.10
-EXPOSE 5000
+EXPOSE 8080
 
 WORKDIR /src
 RUN apt-get update

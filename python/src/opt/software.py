@@ -11,7 +11,7 @@ def is_running_in_docker():
     
 def get_setups():
     if is_running_in_docker():
-        base_url = 'http://nginx:8080/ders/secondlayer/'
+        base_url = 'http://nginx:80/ders/secondlayer/'
     else:
         base_url = 'http://localhost:48080/ders/secondlayer/'
     
@@ -27,7 +27,7 @@ def get_setups():
 
 def get_data_by_setup_id(endpoint, setup_id):
     if is_running_in_docker():
-        base_url = 'http://nginx:8080/ders/secondlayer/'
+        base_url = 'http://nginx:80/ders/secondlayer/'
     else:
         base_url = 'http://localhost:48080/ders/secondlayer/'
 
@@ -59,7 +59,7 @@ def get_v2g_by_setup_id(setup_id):
 def get_timeconfig(config_id):
     # Verifica se está rodando dentro de um contêiner Docker
     if is_running_in_docker():
-        base_url = 'http://nginx:8080/ders/secondlayer/timeconfig/'
+        base_url = 'http://nginx:80/ders/secondlayer/timeconfig/'
     else:
         base_url = 'http://localhost:48080/ders/secondlayer/timeconfig/'
     

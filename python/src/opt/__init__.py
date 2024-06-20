@@ -65,38 +65,50 @@ def optimize(setup):
     print("Checking EVCS status")
     system.evcs_status()
     print("Setting EVCS to 0")
-    for evcs in system.available:
-        print(f'Setting EVCS {evcs["device_id"]} to 0')
-        dojot.set_charging_profile(evcs['device_id'], evcs['connector_id'], evcs['control'], 0)
-    
     Ptotal = system.Ptotal
+    for evcs in system.available:
+        if evcs is not None:
+            print(f'Setting EVCS {evcs["device_id"]} to 0')
+            dojot.set_charging_profile(evcs['device_id'], evcs['connector_id'], evcs['control'], 1.5)
+    
     print("Starting seending power to devices")
+    Pmax_evcs = 0
     for evcs in system.charging:
-        for connector in range(1, evcs['nconn'] + 1):
-            print(f'EVCS {evcs["id"]} connector {connector}')
-            Pevcs = min(evcs[f'conn{connector}_Pmax'], Ptotal)
-            if evcs['nconn'] == 1:
-                connector_id = 0
-            else:
-                connector_id = evcs['connector_id']
-            if evcs['control'] == 'current':
-                limit = int(Pevcs * 1000 / evcs[f'conn{connector}_Vnom'])
-                Ptotal -= (limit * evcs[f'conn{connector}_Vnom']) / 1000
-                data = dojot.set_charging_profile(evcs['id'], connector_id, 'A', limit)
-                print(data)
+        if evcs is not None:
+            for connector in range(1, evcs['nconn'] + 1):
+                Pmax_evcs += evcs[f'conn{connector}_Pmax']
 
-            elif evcs['control'] == 'power':
-                limit = Pevcs
-                Ptotal -= Pevcs
-                data = dojot.set_charging_profile(evcs['id'], connector_id, 'W', limit * 1000)
-                print(data)
+    control = {}
+    for evcs in system.charging:
+        if evcs is not None:
+            for connector in range(1, evcs['nconn'] + 1):
+                if evcs['nconn'] == 1:
+                    connector_id = 0
+                else:
+                    connector_id = evcs['connector_id']
 
-            
+                pdisp = max(min((evcs[f'conn{connector}_Pmax'] * Ptotal)/Pmax_evcs,evcs[f'conn{connector}_Pmax']) ,0)
+                control.update({(evcs, connector_id): pdisp})
+                
 
+    # Activate BESS before EVCS   
     for bess in system.bess:
         # check bess state of charge
         print('BESS dispatch')
 
+
+    for evcs, connector_id in control:
+        if evcs['control'] == 'current':
+            limit = int(control[(evcs, connector_id)] * 1000 / evcs[f'conn{connector_id}_Vnom'])
+            data = dojot.set_charging_profile(evcs['id'], connector_id, 'A', limit)
+            print(data)
+
+        elif evcs['control'] == 'power':
+            limit = control[(evcs, connector_id)]
+            data = dojot.set_charging_profile(evcs['id'], connector_id, 'W', limit * 1000)
+            print(data)
+
+    
     for v2g in system.v2g:
         # check v2g state of charge
         print('V2G dispatch') 
@@ -107,7 +119,8 @@ def optimize(setup):
 def cron_function():
     setups = software.get_setups()
     for setup in setups:
-        optimize(setup)
+        if setup is not None:
+            optimize(setup)
     return
 
 

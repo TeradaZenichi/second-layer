@@ -1,56 +1,72 @@
-version: '3.8'
+version: '3'
 
 services:
-  mysql:
-    image: zenichi/second-layer-mysql:2.0.1
-    build: ./mysql
-    restart: always
-    environment:
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    ports:
-      - "43306:3306"
-
-  phpmyadmin:
-    image: zenichi/second-layer-phpmyadmin:2.0.1
-    build: ./phpmyadmin
-    ports:
-      - "4080:80"
-    environment:
-      - PMA_HOST={MYSQL_HOST}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-    depends_on:
-      - mysql
- 
-
   python:
-    image: zenichi/second-layer-python:2.0.1
+    image: zenichi/second-layer-python:3.0.1
     build: ./python
-    restart: always
-    expose: 
-      - 8081
+    ports:
+      - "8080:8080"
+    networks:
+      - app_network
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_HOST=${MYSQL_HOST}
     volumes:
       - python_data:/var/lib/python
+
+  phpmyadmin:
+    image: zenichi/second-layer-phpmyadmin:3.0.1
+    build: ./phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: ${PMA_HOST}
+      PMA_PORT: ${PMA_PORT}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      PMA_ABSOLUTE_URI: ${PMA_ABSOLUTE_URI}
+      PHP_UPLOAD_MAX_FILESIZE: 128M
+      PHP_POST_MAX_SIZE: 128M
+    ports:
+      - "4080:80"
     depends_on:
       - mysql
- 
+    networks:
+      - app_network
+    volumes:
+      - ./config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+
+  mysql:
+    image: zenichi/second-layer-mysql:3.0.1
+    build: ./mysql
+    container_name: mysql_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    ports:
+      - "43306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app_network
 
   nginx:
-    image: zenichi/second-layer-nginx:2.0.1
-    build: ./nginx
-    restart: always
+    image: zenichi/second-layer-nginx:3.0.1
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
     ports:
-      - "48080:8080"
+      - "48080:80"
     depends_on:
       - python
-  
+      - phpmyadmin
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
 
 volumes:
-  mysql_data:
   python_data:
+  mysql_data:
