@@ -1,11 +1,17 @@
 from opt import software
 from opt import dojot
+import time
+import os
+
+#Define minimum power to charge a vehicle
+Pmin = 1.5 #kW
 
 class SYSTEM:
     def __init__(self, setup):
         self.Pmax = setup['Pmax']
         self.Vnom = setup['Vnom']
         self.controllable = setup['controllable']
+        self.unavailable = []
         self.available = []
         self.charging  = []
         self.evcs = []
@@ -32,31 +38,36 @@ class SYSTEM:
         self.Ptotal = float(self.Pmax)
         for bess in self.bess:
             # check bess state of charge
-            total_power += bess['Pmax']
+            self.Ptotal += bess['Pmax']
         for pv in self.pv:
             # check pv power generation
-            total_power += pv['Pmax']
+            self.Ptotal += pv['Pmax']
         
         for v2g in self.v2g:
             # check v2g state of charge
-            total_power += v2g['Pmax']
+            self.Ptotal += v2g['Pmax']
     
 
     def evcs_status(self):
         par = software.get_timeconfig(1)
         for evcs in self.evcs:
-            heartbeat = dojot.check_data(par["URL"], evcs['id'], "heartbeatReq", 240)
             statusNotification = dojot.check_data(par["URL"], evcs['id'], "statusNotificationReq", 240)
-            if heartbeat:
-                if statusNotification:
-                    if statusNotification['value']['status'] in ['Preparing', 'Charging', "Reserved"]:
-                        self.charging.append(evcs)
-                else:
+            if statusNotification:
+                if statusNotification['value']['status'] in ['Preparing', 'Charging', "Reserved"]:
+                    self.charging.append(evcs)
+                if statusNotification['value']['status'] in ["Available", "Finishing", "Unavailable", "Faulted", "SuspendedEV", "SuspendedEVSE"]:
                     self.available.append(evcs)
-
-            a = 1
-            
-        
+            else:
+                heartbeat = dojot.check_data(par["URL"], evcs['id'], "heartbeatReq", 30)
+                if heartbeat:
+                    self.available.append(evcs)
+                else:
+                    self.unavailable.append(evcs)
+                    if os.environ.get('SECURITY_MODE', "TRUE") != 'FALSE':
+                        for connector in range(1, evcs['nconn'] + 1):
+                             self.Ptotal = max(self.Ptotal - evcs[f'conn{connector}_Pmax'], 0)
+                        print(f"EVCS {evcs['id']} is not sending data")
+            time.sleep(1)
 
 def optimize(setup):
     system = SYSTEM(setup)
@@ -64,13 +75,56 @@ def optimize(setup):
     system.total_power()
     print("Checking EVCS status")
     system.evcs_status()
-    print("Setting EVCS to 0")
+    print("Setting EVCS to its minimum power")
     Ptotal = system.Ptotal
     for evcs in system.available:
         if evcs is not None:
-            print(f'Setting EVCS {evcs["device_id"]} to 0')
-            dojot.set_charging_profile(evcs['device_id'], evcs['connector_id'], evcs['control'], 1.5)
+            for connector in range(1, evcs['nconn'] + 1):
+                if evcs[f"conn{connector}_Pmax"] < 10:
+                    Pmin = 1.5
+                elif evcs[f"conn{connector}_Pmax"] < 30:
+                    Pmin = 3
+                elif evcs[f"conn{connector}_Pmax"] < 50:
+                    Pmin = 5
+                else:
+                    Pmin = 10
     
+                print(f'Setting EVCS {evcs["id"]} to {Pmin} kW')
+                if evcs['control'] == 'current':
+                    limit = int(Pmin * 1000 / evcs[f'conn{connector}_Vnom'])
+                    if evcs['nconn'] == 1:
+                        connector_id = 0
+                    else:
+                        connector_id = connector
+                    data = dojot.set_charging_profile(evcs['id'], connector_id, 'A', limit)
+                    print(data)                    
+                    # verify if the limit is set correctly data should be {'status': 'Accepted'} but could be a empty dict
+                    if data != {'status': 'Accepted'}: 
+                        print(f'Error setting EVCS {evcs["id"]} to {limit} A')
+                        Ptotal = Ptotal - evcs[f'conn{connector}_Pmax']
+                    else:
+                        print(f'Success setting EVCS {evcs["id"]} to {limit} A')
+                        Ptotal = Ptotal - Pmin
+
+                    
+
+
+                elif evcs['control'] == 'power':
+                    limit = Pmin
+                    if evcs['nconn'] == 1:
+                        connector_id = 0
+                    else:
+                        connector_id = connector
+                    data = dojot.set_charging_profile(evcs['id'], connector_id, 'W', limit * 1000)
+                    print(data)
+                    if data != {'status': 'Accepted'}: 
+                        print(f'Error setting EVCS {evcs["id"]} to {limit} A')
+                        Ptotal = Ptotal - evcs[f'conn{connector}_Pmax']
+                    else:
+                        print(f'Success setting EVCS {evcs["id"]} to {limit} A')
+                        Ptotal = Ptotal - Pmin
+
+    print(f"Total power for EV dispatch: {Ptotal} W")
     print("Starting seending power to devices")
     Pmax_evcs = 0
     for evcs in system.charging:
@@ -88,7 +142,12 @@ def optimize(setup):
                     connector_id = evcs['connector_id']
 
                 pdisp = max(min((evcs[f'conn{connector}_Pmax'] * Ptotal)/Pmax_evcs,evcs[f'conn{connector}_Pmax']) ,0)
-                control.update({(evcs, connector_id): pdisp})
+                if evcs['control'] == 'current':
+                    limit = int(pdisp * 1000 / evcs[f'conn{connector}_Vnom'])
+                    control.update({(evcs["id"], connector_id): [limit, "A"]})
+                elif evcs['control'] == 'power':    
+                    limit = pdisp
+                    control.update({(evcs["id"], connector_id): [limit, "W"]})
                 
 
     # Activate BESS before EVCS   
@@ -98,15 +157,11 @@ def optimize(setup):
 
 
     for evcs, connector_id in control:
-        if evcs['control'] == 'current':
-            limit = int(control[(evcs, connector_id)] * 1000 / evcs[f'conn{connector_id}_Vnom'])
-            data = dojot.set_charging_profile(evcs['id'], connector_id, 'A', limit)
-            print(data)
-
-        elif evcs['control'] == 'power':
-            limit = control[(evcs, connector_id)]
-            data = dojot.set_charging_profile(evcs['id'], connector_id, 'W', limit * 1000)
-            print(data)
+        limit = control[(evcs, connector_id)][0]
+        unit = control[(evcs, connector_id)][1]
+        print(f'Setting EVCS {evcs} to {limit} {unit}')
+        data = dojot.set_charging_profile(evcs, connector_id, unit, limit)
+        print(data)
 
     
     for v2g in system.v2g:

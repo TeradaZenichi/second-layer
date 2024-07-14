@@ -13,7 +13,7 @@ def get_setups():
     if is_running_in_docker():
         base_url = 'http://nginx:80/ders/secondlayer/'
     else:
-        base_url = 'http://localhost:48080/ders/secondlayer/'
+        base_url = 'http://localhost:40080/ders/secondlayer/'
     
     url = base_url + 'setups/'
 
@@ -29,7 +29,7 @@ def get_data_by_setup_id(endpoint, setup_id):
     if is_running_in_docker():
         base_url = 'http://nginx:80/ders/secondlayer/'
     else:
-        base_url = 'http://localhost:48080/ders/secondlayer/'
+        base_url = 'http://localhost:40080/ders/secondlayer/'
 
     url = base_url + endpoint
     headers = {'accept': 'application/json'}
@@ -61,7 +61,7 @@ def get_timeconfig(config_id):
     if is_running_in_docker():
         base_url = 'http://nginx:80/ders/secondlayer/timeconfig/'
     else:
-        base_url = 'http://localhost:48080/ders/secondlayer/timeconfig/'
+        base_url = 'http://localhost:40080/ders/secondlayer/timeconfig/'
     
     url = base_url + str(config_id)
     headers = {'accept': 'application/json'}

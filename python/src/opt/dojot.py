@@ -7,7 +7,7 @@ def check_data(url, device_id, attr, interval_minutes):
     date_to = datetime.datetime.now(pytz.utc)
     
     # Calculando `dateFrom` como `interval_minutes` antes de `dateTo`
-    date_from = date_to - datetime.timedelta(minutes=240)
+    date_from = date_to - datetime.timedelta(minutes=interval_minutes)
     
     # Convertendo datas para strings no formato ISO 8601 com 'Z'
     date_to_str = date_to.isoformat().replace("+00:00", "Z")
@@ -17,8 +17,9 @@ def check_data(url, device_id, attr, interval_minutes):
     payload = {
         "device_id": device_id,
         "attr": attr,
-        "dateFrom": date_from_str,
-        "dateTo": date_to_str
+        "lastN": 1
+        #"dateFrom": date_from_str,
+        #"dateTo": date_to_str
     }
     
     # Headers da requisição
@@ -84,9 +85,43 @@ def set_charging_profile(device_id, connector_id, charging_rate_unit, limit):
     response = requests.post(url, json=payload, headers=headers)
     if response.status_code >= 200 and response.status_code < 300:
         data = response.json()
+        if data != {'status': 'Accepted'}:
+            #try again
+            response = requests.post(url, json=payload, headers=headers)
+            if response.status_code >= 200 and response.status_code < 300:
+                data = response.json()
+                return data
+            else:
+                return None
         return data
     else:
-        return None
+        #try again
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code >= 200 and response.status_code < 300:
+            data = response.json()
+            if data != {'status': 'Accepted'}:
+                #try again
+                response = requests.post(url, json=payload, headers=headers)
+                if response.status_code >= 200 and response.status_code < 300:
+                    data = response.json()
+                else:
+                    return None
+            return data
+        else:
+            #try again
+            response = requests.post(url, json=payload, headers=headers)
+            if response.status_code >= 200 and response.status_code < 300:
+                data = response.json()
+                if data != {'status': 'Accepted'}:
+                    #try again
+                    response = requests.post(url, json=payload, headers=headers)
+                    if response.status_code >= 200 and response.status_code < 300:
+                        data = response.json()
+                    else:
+                        return None
+                return data
+            else:
+                return None
 
 
 if __name__ == "__main__":

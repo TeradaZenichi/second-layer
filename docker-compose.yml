@@ -2,10 +2,10 @@ version: '3'
 
 services:
   python:
-    image: zenichi/second-layer-python:3.0.1
+    image: zenichi/second-layer-python:3.2.1
     build: ./python
     ports:
-      - "8080:8080"
+      - "48080:8080"
     networks:
       - app_network
     environment:
@@ -32,8 +32,7 @@ services:
       - mysql
     networks:
       - app_network
-    volumes:
-      - ./config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+
 
   mysql:
     image: zenichi/second-layer-mysql:3.0.1
@@ -56,7 +55,7 @@ services:
       dockerfile: Dockerfile
     container_name: nginx
     ports:
-      - "48080:80"
+      - "40080:80"
     depends_on:
       - python
       - phpmyadmin
