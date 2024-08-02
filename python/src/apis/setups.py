@@ -18,6 +18,12 @@ setup_update_model = api.model('SetupUpdate', {
     'controllable': fields.String(required=False, description='Controllability type')
 })
 
+# Model for devices response
+device_model = api.model('Device', {
+    'type': fields.String(description='Device type (BESS, PV, EVCS, V2G)'),
+    'data': fields.Raw(description='Device data')
+})
+
 def validate_setup(data):
     errors = []
     if 'Pmax' in data and (data['Pmax'] <= 0):
@@ -160,3 +166,50 @@ class Setup(Resource):
         cursor.close()
         db_connection.close()
         return '', 204
+    
+@api.route('/<int:id>/devices')
+@api.param('id', 'The setup identifier')
+@api.response(404, 'Setup not found')
+class SetupDevices(Resource):
+    @api.marshal_list_with(device_model)
+    def get(self, id):
+        '''Fetch all devices associated with a setup given its identifier'''
+        check.initialize_tables()
+        db_connection = check.get_db_connection()
+        cursor = db_connection.cursor(dictionary=True)
+        
+        # Verify the setup exists
+        cursor.execute("SELECT id FROM setup WHERE id = %s", (id,))
+        setup = cursor.fetchone()
+        if not setup:
+            cursor.close()
+            db_connection.close()
+            abort(404, f"Setup with id {id} not found.")
+        
+        # Fetch all associated devices
+        devices = []
+
+        cursor.execute("SELECT * FROM BESS WHERE setup_id = %s", (id,))
+        bess_entries = cursor.fetchall()
+        for entry in bess_entries:
+            devices.append({'type': 'BESS', 'data': entry})
+
+        cursor.execute("SELECT * FROM PV WHERE setup_id = %s", (id,))
+        pv_entries = cursor.fetchall()
+        for entry in pv_entries:
+            devices.append({'type': 'PV', 'data': entry})
+
+        cursor.execute("SELECT * FROM EVCS WHERE setup_id = %s", (id,))
+        evcs_entries = cursor.fetchall()
+        for entry in evcs_entries:
+            devices.append({'type': 'EVCS', 'data': entry})
+
+        cursor.execute("SELECT * FROM V2G WHERE setup_id = %s", (id,))
+        v2g_entries = cursor.fetchall()
+        for entry in v2g_entries:
+            devices.append({'type': 'V2G', 'data': entry})
+
+        cursor.close()
+        db_connection.close()
+        
+        return devices

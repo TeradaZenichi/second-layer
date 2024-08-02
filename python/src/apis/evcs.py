@@ -1,4 +1,4 @@
-from flask_restx import Namespace, Resource, fields
+from flask_restx import Namespace, Resource, fields, reqparse
 from data.check import initialize_tables, get_db_connection
 
 # Criação do namespace
@@ -25,6 +25,10 @@ evcs_model = api.model('EVCS', {
     'conn3_Imax': fields.Float(description='Maximum current for the third connector'),
 })
 
+# Parser para o parâmetro setup_id
+parser = reqparse.RequestParser()
+parser.add_argument('setup_id', type=int, required=True, help='Setup ID to filter EVCS')
+
 # Endpoint para listar e criar EVCS
 @api.route('/')
 class EVCSList(Resource):
@@ -45,7 +49,7 @@ class EVCSList(Resource):
     @api.expect(evcs_model)
     @api.marshal_with(evcs_model, code=201)
     def post(self):
-        """Create a new EVCS entry"""
+        """Add a new EVCS entry"""
         data = api.payload
         initialize_tables()
         conn = get_db_connection()
@@ -130,3 +134,26 @@ class EVCSResource(Resource):
         if affected == 0:
             api.abort(404, f"No EVCS found with id {id}")
         return {"message": "EVCS deleted successfully"}, 204
+    
+
+# # Endpoint para listar EVCS por setup_id
+# @api.route('/setup')
+# class EVCSBySetup(Resource):
+#     @api.expect(parser)
+#     @api.marshal_list_with(evcs_model)
+#     def get(self):
+#         """List all EVCS entries for a specific setup"""
+#         args = parser.parse_args()
+#         setup_id = args.get('setup_id')
+#         initialize_tables()
+#         conn = get_db_connection()
+#         if conn is None:
+#             api.abort(500, "Failed to connect to the database")
+#         cursor = conn.cursor(dictionary=True)
+#         cursor.execute("SELECT * FROM EVCS WHERE setup_id = %s", (setup_id,))
+#         evcs_entries = cursor.fetchall()
+#         cursor.close()
+#         conn.close()
+#         if not evcs_entries:
+#             api.abort(404, f"No EVCS found with setup_id {setup_id}")
+#         return evcs_entries

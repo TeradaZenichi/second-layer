@@ -124,7 +124,7 @@ def optimize(setup):
                         print(f'Success setting EVCS {evcs["id"]} to {limit} A')
                         Ptotal = Ptotal - Pmin
 
-    print(f"Total power for EV dispatch: {Ptotal} W")
+    print(f"Total power for EV dispatch: {Ptotal} kW")
     print("Starting seending power to devices")
     Pmax_evcs = 0
     for evcs in system.charging:

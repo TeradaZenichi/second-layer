@@ -32,7 +32,7 @@ def initialize_tables():
             controllable ENUM('none', 'hourly', 'voltage') NOT NULL
         )
         """)
-        print("Tabela 'setup' criada com sucesso!")
+        # print("Tabela 'setup' criada com sucesso!")
     
     
     # Tabela "EVCS"
@@ -61,7 +61,7 @@ def initialize_tables():
             FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
         )
         """)
-        print("Tabela 'EVCS' criada com sucesso!")
+        # print("Tabela 'EVCS' criada com sucesso!")
 
         # Criando os gatilhos para garantir a consistência dos dados com base em nconn
         cursor.execute("""
@@ -83,7 +83,7 @@ def initialize_tables():
             END IF;
         END;
         """)
-        print("Gatilhos para a tabela 'EVCS' criados com sucesso!")
+        # print("Gatilhos para a tabela 'EVCS' criados com sucesso!")
    
 
     # Tabela V2G EVCS
@@ -112,7 +112,7 @@ def initialize_tables():
             PRIMARY KEY (id),
             FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
         )""")
-        print("Tabela 'V2G' criada com sucesso!")
+        # print("Tabela 'V2G' criada com sucesso!")
 
         # Creating triggers to ensure data consistency based on nconn
         cursor.execute("""
@@ -134,7 +134,7 @@ def initialize_tables():
             END IF;
         END;
         """)
-        print("Gatilhos para a tabela 'V2G' criados com sucesso!")
+        # print("Gatilhos para a tabela 'V2G' criados com sucesso!")
 
     # Tabela "BESS"
     cursor.execute("SHOW TABLES LIKE 'BESS'")
@@ -151,7 +151,7 @@ def initialize_tables():
             FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
         )
         """)
-        print("Tabela 'BESS' criada com sucesso!")
+        # print("Tabela 'BESS' criada com sucesso!")
    
 
     # Tabela "PV"
@@ -168,9 +168,9 @@ def initialize_tables():
             FOREIGN KEY (setup_id) REFERENCES setup(id) ON DELETE CASCADE
         )
         """)
-        print("Tabela 'PV' criada com sucesso!")
-    else:
-        print("Tabela 'PV' já existe.")
+        # print("Tabela 'PV' criada com sucesso!")
+    # else:
+        # print("Tabela 'PV' já existe.")
 
     # Criação da tabela "TimeConfig"
     cursor.execute("SHOW TABLES LIKE 'TimeConfig'")
@@ -187,7 +187,7 @@ def initialize_tables():
             UNIQUE (URL, timestep)
         )
         """)
-        print("Tabela 'TimeConfig' criada com sucesso!")
+        # print("Tabela 'TimeConfig' criada com sucesso!")
         # Inserir valores pré-definidos
         cursor.execute("""
         INSERT INTO TimeConfig (id, URL, timestep, tmin_d, tmax_d, tmin_c, tmax_c) VALUES
@@ -195,7 +195,7 @@ def initialize_tables():
         5, '18:00', '21:00', '03:00', '05:00')
         """)
         mydb.commit()
-        print("Dados inseridos com sucesso na tabela 'TimeConfig'.")
+        # print("Dados inseridos com sucesso na tabela 'TimeConfig'.")
    
     # close the connection
     cursor.close()
