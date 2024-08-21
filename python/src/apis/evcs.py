@@ -25,6 +25,27 @@ evcs_model = api.model('EVCS', {
     'conn3_Imax': fields.Float(description='Maximum current for the third connector'),
 })
 
+
+# Modelo de dados para EVCS
+update_model = api.model('UPDATE_EVCS', {
+    'name': fields.String(required=False, description='The EVCS name'),
+    'setup_id': fields.Integer(required=False, description='Associated setup ID'),
+    'nconn': fields.Integer(required=False, description='Number of connections'),
+    'control': fields.String(required=False, enum=['none', 'power', 'current'], description='Control type'),
+    'conn1_type': fields.String(enum=['AC', 'DC'], description='Type of the first connector'),
+    'conn1_Pmax': fields.Float(description='Maximum power for the first connector'),
+    'conn1_Vnom': fields.Float(description='Nominal voltage for the first connector'),
+    'conn1_Imax': fields.Float(description='Maximum current for the first connector'),
+    'conn2_type': fields.String(enum=['AC', 'DC'], description='Type of the second connector'),
+    'conn2_Pmax': fields.Float(description='Maximum power for the second connector'),
+    'conn2_Vnom': fields.Float(description='Nominal voltage for the second connector'),
+    'conn2_Imax': fields.Float(description='Maximum current for the second connector'),
+    'conn3_type': fields.String(enum=['AC', 'DC'], description='Type of the third connector'),
+    'conn3_Pmax': fields.Float(description='Maximum power for the third connector'),
+    'conn3_Vnom': fields.Float(description='Nominal voltage for the third connector'),
+    'conn3_Imax': fields.Float(description='Maximum current for the third connector'),
+})
+
 # Parser para o parâmetro setup_id
 parser = reqparse.RequestParser()
 parser.add_argument('setup_id', type=int, required=True, help='Setup ID to filter EVCS')
@@ -94,30 +115,75 @@ class EVCSResource(Resource):
             api.abort(404, f"EVCS with id {id} not found")
         return evcs_entry
 
-    @api.expect(evcs_model)
+    @api.expect(update_model, validate=True)
     @api.marshal_with(evcs_model)
     def put(self, id):
         """Update an existing EVCS entry"""
         data = api.payload
+        if not data:
+            api.abort(400, "No input data provided")
+            
         initialize_tables()
         conn = get_db_connection()
         if conn is None:
             api.abort(500, "Failed to connect to the database")
         cursor = conn.cursor()
-        set_clause = ', '.join([f"{k} = %s" for k, v in data.items() if v is not None])
-        values = [v for v in data.values() if v is not None] + [id]
-        update_query = f"UPDATE EVCS SET {set_clause} WHERE id = %s"
+        
+        update_fields = []
+        update_values = []
+        
+        for key, value in data.items():
+            if value is not None:
+                update_fields.append(f"{key} = %s")
+                update_values.append(value)
+        
+        if not update_fields:
+            api.abort(400, "No fields to update")
+        
+        update_values.append(id)
+        
+        query = f"UPDATE EVCS SET {', '.join(update_fields)} WHERE id = %s"
         try:
-            cursor.execute(update_query, values)
+            cursor.execute(query, update_values)
             if cursor.rowcount == 0:
                 api.abort(404, f"No EVCS found with id {id}")
             conn.commit()
         except Exception as e:
             conn.close()
             api.abort(400, f"Failed to update EVCS record: {e}")
+        
+        # Buscar a entrada atualizada
+        cursor.execute("SELECT * FROM EVCS WHERE id = %s", (id,))
+        updated_entry = cursor.fetchone()
+        
         cursor.close()
         conn.close()
-        return {"message": "EVCS updated successfully"}, 200
+        
+        if not updated_entry:
+            api.abort(404, "Updated EVCS not found")
+        
+        # Mapear os resultados da consulta para o formato de dicionário esperado
+        updated_data = {
+            'id': updated_entry[0],
+            'name': updated_entry[1],
+            'setup_id': updated_entry[2],
+            'nconn': updated_entry[3],
+            'control': updated_entry[4],
+            'conn1_type': updated_entry[5],
+            'conn1_Pmax': updated_entry[6],
+            'conn1_Vnom': updated_entry[7],
+            'conn1_Imax': updated_entry[8],
+            'conn2_type': updated_entry[9],
+            'conn2_Pmax': updated_entry[10],
+            'conn2_Vnom': updated_entry[11],
+            'conn2_Imax': updated_entry[12],
+            'conn3_type': updated_entry[13],
+            'conn3_Pmax': updated_entry[14],
+            'conn3_Vnom': updated_entry[15],
+            'conn3_Imax': updated_entry[16]
+        }
+        
+        return updated_data
 
     def delete(self, id):
         """Delete an EVCS entry"""

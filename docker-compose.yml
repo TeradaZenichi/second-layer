@@ -2,7 +2,7 @@ version: '3'
 
 services:
   python:
-    image: zenichi/second-layer-python:3.2.1
+    image: zenichi/second-layer-python:3.4.2
     build: ./python
     ports:
       - "48080:8080"

@@ -12,6 +12,15 @@ bess_model = api.model('BESS', {
     'Emax': fields.Float(required=True, description='Maximum energy capacity of the BESS', min=0)
 })
 
+
+update_model = api.model('UPDATE_BESS', {
+    'name': fields.String(required=False, description='Name of the BESS'),
+    'setup_id': fields.Integer(required=False, description='ID of the associated setup'),
+    'eff': fields.Float(required=False, description='Efficiency of the BESS', min=0, max=1),
+    'Pmax': fields.Float(required=False, description='Maximum power rating of the BESS', min=0),
+    'Emax': fields.Float(required=False, description='Maximum energy capacity of the BESS', min=0)
+})
+
 @api.route('/')
 class BESSList(Resource):
     @api.marshal_list_with(bess_model)
@@ -58,23 +67,71 @@ class BESSResource(Resource):
             return result
         api.abort(404, "BESS not found")
 
-    @api.expect(bess_model)
+
+
+    @api.expect(update_model, validate=True)
     @api.marshal_with(bess_model)
     def put(self, id):
         """Update an existing BESS entry"""
         data = api.payload
+        if not data:
+            api.abort(400, "No input data provided")
+            
         initialize_tables()
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE BESS SET name=%s, setup_id=%s, eff=%s, Pmax=%s, Emax=%s WHERE id=%s",
-                       (data['name'], data['setup_id'], data['eff'], data['Pmax'], data['Emax'], id))
+        
+        update_fields = []
+        update_values = []
+        
+        if 'name' in data:
+            update_fields.append("name=%s")
+            update_values.append(data['name'])
+        if 'setup_id' in data:
+            update_fields.append("setup_id=%s")
+            update_values.append(data['setup_id'])
+        if 'eff' in data:
+            update_fields.append("eff=%s")
+            update_values.append(data['eff'])
+        if 'Pmax' in data:
+            update_fields.append("Pmax=%s")
+            update_values.append(data['Pmax'])
+        if 'Emax' in data:
+            update_fields.append("Emax=%s")
+            update_values.append(data['Emax'])
+        
+        if not update_fields:
+            api.abort(400, "No fields to update")
+        
+        update_values.append(id)
+        
+        query = f"UPDATE BESS SET {', '.join(update_fields)} WHERE id=%s"
+        cursor.execute(query, update_values)
+        
         if cursor.rowcount == 0:
             conn.close()
             api.abort(404, "BESS not found")
+        
         conn.commit()
+        
+        # Buscar a entrada atualizada
+        cursor.execute("SELECT id, name, setup_id, eff, Pmax, Emax FROM BESS WHERE id=%s", (id,))
+        updated_entry = cursor.fetchone()
+        
         cursor.close()
         conn.close()
-        return data
+        
+        if not updated_entry:
+            api.abort(404, "Updated BESS not found")
+        
+        return {
+            'id': updated_entry[0],
+            'name': updated_entry[1],
+            'setup_id': updated_entry[2],
+            'eff': updated_entry[3],
+            'Pmax': updated_entry[4],
+            'Emax': updated_entry[5]
+        }
 
     def delete(self, id):
         """Delete a BESS entry"""

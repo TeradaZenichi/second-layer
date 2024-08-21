@@ -45,7 +45,8 @@ class SYSTEM:
         
         for v2g in self.v2g:
             # check v2g state of charge
-            self.Ptotal += v2g['Pmax']
+            for connector in range(1, v2g['nconn'] + 1):
+                self.Ptotal += v2g[f'conn{connector}_Pmax']
     
 
     def evcs_status(self):

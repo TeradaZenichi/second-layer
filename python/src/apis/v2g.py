@@ -26,6 +26,25 @@ v2g_model = api.model('V2G', {
     'conn3_Imax': fields.Float(description='Maximum current of the third connector', skip_none=True),
 })
 
+update_model = api.model('UPDATE_V2G', {
+    'name': fields.String(required=False, description='The V2G name'),
+    'setup_id': fields.Integer(required=False, description='Associated setup ID'),
+    'nconn': fields.Integer(required=False, description='Number of connections'),
+    'control': fields.String(required=False, enum=['none', 'power', 'current'], description='Control type'),
+    'conn1_type': fields.String(enum=['AC', 'DC'], description='Type of the first connector'),
+    'conn1_Pmax': fields.Float(description='Maximum power for the first connector'),
+    'conn1_Vnom': fields.Float(description='Nominal voltage for the first connector'),
+    'conn1_Imax': fields.Float(description='Maximum current for the first connector'),
+    'conn2_type': fields.String(enum=['AC', 'DC'], description='Type of the second connector'),
+    'conn2_Pmax': fields.Float(description='Maximum power for the second connector'),
+    'conn2_Vnom': fields.Float(description='Nominal voltage for the second connector'),
+    'conn2_Imax': fields.Float(description='Maximum current for the second connector'),
+    'conn3_type': fields.String(enum=['AC', 'DC'], description='Type of the third connector'),
+    'conn3_Pmax': fields.Float(description='Maximum power for the third connector'),
+    'conn3_Vnom': fields.Float(description='Nominal voltage for the third connector'),
+    'conn3_Imax': fields.Float(description='Maximum current for the third connector'),
+})
+
 def validate_nconn(data):
     """ Validate connectors based on nconn value """
     nconn = data.get('nconn')
@@ -98,7 +117,7 @@ class V2GResource(Resource):
             api.abort(404, f"V2G with id {id} not found")
         return v2g_entry
 
-    @api.expect(v2g_model)
+    @api.expect(update_model, validate=True)
     @api.marshal_with(v2g_model)
     def put(self, id):
         """Update an existing V2G entry."""
@@ -106,25 +125,70 @@ class V2GResource(Resource):
         errors = validate_nconn(data)
         if errors:
             api.abort(400, f"Validation error: {'; '.join(errors)}")
+
         conn = get_db_connection()
+        if conn is None:
+            api.abort(500, "Failed to connect to the database")
         cursor = conn.cursor()
-        set_clause = ', '.join([f"{k} = %s" for k, v in data.items() if v is not None])
-        values = [v for v in data.values() if v is not None] + [id]
-        update_query = f"UPDATE V2G SET {set_clause} WHERE id = %s"
+
+        update_fields = []
+        update_values = []
+
+        for key, value in data.items():
+            if value is not None:
+                update_fields.append(f"{key} = %s")
+                update_values.append(value)
+
+        if not update_fields:
+            api.abort(400, "No fields to update")
+
+        update_values.append(id)
+
+        query = f"UPDATE V2G SET {', '.join(update_fields)} WHERE id = %s"
         try:
-            cursor.execute(update_query, values)
+            cursor.execute(query, update_values)
             conn.commit()
             if cursor.rowcount == 0:
                 cursor.close()
                 conn.close()
                 api.abort(404, f"No V2G found with id {id}")
-        except mysql.connector.Error as err:
+        except Exception as e:
             cursor.close()
             conn.close()
-            api.abort(400, f"Failed to update V2G record: {err}")
+            api.abort(400, f"Failed to update V2G record: {e}")
+
+        # Buscar a entrada atualizada
+        cursor.execute("SELECT * FROM V2G WHERE id = %s", (id,))
+        updated_entry = cursor.fetchone()
+
         cursor.close()
         conn.close()
-        return {"message": "V2G updated successfully"}, 200
+
+        if not updated_entry:
+            api.abort(404, "Updated V2G not found")
+
+        # Mapear os resultados da consulta para o formato de dicionário esperado
+        updated_data = {
+            'id': updated_entry[0],
+            'name': updated_entry[1],
+            'setup_id': updated_entry[2],
+            'nconn': updated_entry[3],
+            'control': updated_entry[4],
+            'conn1_type': updated_entry[5],
+            'conn1_Pmax': updated_entry[6],
+            'conn1_Vnom': updated_entry[7],
+            'conn1_Imax': updated_entry[8],
+            'conn2_type': updated_entry[9],
+            'conn2_Pmax': updated_entry[10],
+            'conn2_Vnom': updated_entry[11],
+            'conn2_Imax': updated_entry[12],
+            'conn3_type': updated_entry[13],
+            'conn3_Pmax': updated_entry[14],
+            'conn3_Vnom': updated_entry[15],
+            'conn3_Imax': updated_entry[16]
+        }
+        
+        return updated_data
 
     def delete(self, id):
         """Delete a V2G entry."""

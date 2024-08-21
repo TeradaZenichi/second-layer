@@ -92,12 +92,12 @@ class Setup(Resource):
             return setup
         abort(404)
 
-    @api.expect(setup_update_model)
+    @api.expect(setup_update_model, validate=True)
     @api.marshal_with(setup_model)
     def put(self, id):
         '''Update a setup given its identifier, allowing partial updates'''
         setup = api.payload
-        
+
         # Validate setup data
         errors = validate_setup(setup)
         if errors:
@@ -107,8 +107,9 @@ class Setup(Resource):
         update_fields = []
         update_values = []
         for field, value in setup.items():
-            update_fields.append(f"{field} = %s")
-            update_values.append(value)
+            if value is not None:
+                update_fields.append(f"{field} = %s")
+                update_values.append(value)
 
         if not update_fields:
             abort(400, "No fields provided for update")
@@ -120,19 +121,32 @@ class Setup(Resource):
         check.initialize_tables()
         db_connection = check.get_db_connection()
         cursor = db_connection.cursor(dictionary=True)
-        cursor.execute(update_query, tuple(update_values))
-        db_connection.commit()
+        try:
+            cursor.execute(update_query, tuple(update_values))
+            db_connection.commit()
 
-        # Check if the update operation affected any rows (i.e., if the provided id exists)
-        if cursor.rowcount == 0:
+            # Check if the update operation affected any rows (i.e., if the provided id exists)
+            if cursor.rowcount == 0:
+                cursor.close()
+                db_connection.close()
+                abort(404, f"Setup with id {id} not found")
+
+            # Fetch the updated setup
+            cursor.execute("SELECT * FROM setup WHERE id = %s", (id,))
+            updated_setup = cursor.fetchone()
+
             cursor.close()
             db_connection.close()
-            abort(404, f"Setup with id {id} not found")
 
-        cursor.close()
-        db_connection.close()
+            if not updated_setup:
+                abort(404, "Updated setup not found")
 
-        return setup, 200
+            return updated_setup, 200
+
+        except Exception as e:
+            cursor.close()
+            db_connection.close()
+            abort(400, f"Failed to update setup record: {e}")
 
 
     @api.response(204, 'Setup successfully deleted.')
