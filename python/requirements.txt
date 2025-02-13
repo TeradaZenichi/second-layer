@@ -1,12 +1,33 @@
-pandas
-flask_restx==1.0.5
-flask==2.3.3
+# Dependências principais para o framework Flask
+# flask==2.3.3
+# flask_restx==1.0.5  # Extensão para construir APIs REST com Flask
+numpy
+
+flask==2.1.2
+flask-restx==0.5.1
+werkzeug==2.1.2
+
+# Servidor de aplicação (uWSGI)
 uwsgi
-certifi
-mysql-connector-python
-python-dateutil
-charset-normalizer==3.3.2
-idna==3.7
-pytz==2024.1
-requests==2.31.0
-urllib3==2.2.1
+
+# Bibliotecas para conexão com bancos de dados e manipulação de dados
+mysql-connector-python  # Conector MySQL para Python
+pandas  # Biblioteca para manipulação de dados em tabelas
+python-dateutil  # Utilitários para manipulação de datas e tempos
+
+# Bibliotecas de dependências para requisições HTTP
+requests==2.31.0  # Biblioteca popular para fazer requisições HTTP
+urllib3==2.2.1  # Gerenciamento de conexões HTTP subjacente usado pelo requests
+
+# Bibliotecas de encoding e compatibilidade de strings
+charset-normalizer==3.3.2  # Melhor suporte a encoding de strings em requests
+idna==3.7  # Suporte a domínios internacionalizados (usado pelo requests)
+
+# Bibliotecas relacionadas a fuso horário
+pytz==2024.1  # Suporte a fusos horários em Python
+
+# Certificados para conexões SSL
+certifi  # Fornece certificados SSL seguros
+psycopg2
+tzdata==2024.2
+tzlocal==5.2

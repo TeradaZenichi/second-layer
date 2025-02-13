@@ -191,7 +191,7 @@ def initialize_tables():
         # Inserir valores pré-definidos
         cursor.execute("""
         INSERT INTO TimeConfig (id, URL, timestep, tmin_d, tmax_d, tmin_c, tmax_c) VALUES
-        (1, 'https://cs3060.cpqd.com.br/cpqd-manager/rest/containers/deviceHistory/processes/deviceHistory.deviceHistory/variables/Result', 
+        (1, 'https://platmobele.cpqd.com.br/cpqd-manager/rest/containers/deviceHistory/processes/deviceHistory.deviceHistory/variables/Result', 
         5, '18:00', '21:00', '03:00', '05:00')
         """)
         mydb.commit()

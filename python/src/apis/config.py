@@ -16,13 +16,16 @@ time_config_model = api.model('TimeConfig', {
 })
 
 # Definição do modelo de atualização parcial para Setup
-setup_update_model = api.model('SetupUpdate', {
-    'name': fields.String(required=False, description='The setup name'),
-    'Pmax': fields.Float(required=False, description='The maximum power'),
-    'Vnom': fields.Float(required=False, description='The nominal voltage'),
-    'controllable': fields.String(required=False, description='Controllability type')
+time_config_update_model = api.model('TimeConfigUPDATE', {
+    'URL': fields.String(required = False, description='URL associated with the time configuration'),
+    'timestep': fields.Integer(required = False, description='Time step associated with the configuration'),
+    'tmin_d': fields.String(required = False, description='Minimum daytime time in HH:MM format'),
+    'tmax_d': fields.String(required = False, description='Maximum daytime time in HH:MM format'),
+    'tmin_c': fields.String(required = False, description='Minimum nighttime time in HH:MM format'),
+    'tmax_c': fields.String(required = False, description='Maximum nighttime time in HH:MM format')
 })
 
+"""
 
 def validate_setup(setup):
     errors = []
@@ -43,7 +46,7 @@ def validate_setup(setup):
     # For example, checking if a field should be within a certain range or not empty
     
     return errors
-
+"""
 
 @api.route('/1')  # Fixed ID as part of the URL
 class TimeConfigResource(Resource):
@@ -63,16 +66,11 @@ class TimeConfigResource(Resource):
             api.abort(404, "TimeConfig not found")
         return result
 
-    @api.expect(setup_update_model, validate=True)
-    @api.marshal_with(setup_update_model)
+    @api.expect(time_config_update_model, validate=True)
+    @api.marshal_with(time_config_update_model)
     def put(self, id=1):
-        '''Update a setup given its identifier, allowing partial updates'''
+        '''Update a config given its identifier, allowing partial updates'''
         setup = api.payload
-
-        # Validate setup data
-        errors = validate_setup(setup)
-        if errors:
-            api.abort(400, ". ".join(errors))
 
         # Construct SQL dynamically based on provided fields
         update_fields = []
@@ -85,7 +83,7 @@ class TimeConfigResource(Resource):
         if not update_fields:
             api.abort(400, "No fields provided for update")
 
-        update_query = f"UPDATE setup SET {', '.join(update_fields)} WHERE id = %s"
+        update_query = f"UPDATE TimeConfig SET {', '.join(update_fields)} WHERE id = %s"
         update_values.append(id)  # Adds the id at the end of the values list for the WHERE clause
 
         # Connect to the database and execute the update operation
@@ -103,18 +101,18 @@ class TimeConfigResource(Resource):
                 api.abort(404, f"Setup with id {id} not found")
 
             # Fetch the updated setup
-            cursor.execute("SELECT * FROM setup WHERE id = %s", (id,))
+            cursor.execute("SELECT * FROM TimeConfig WHERE id = %s", (id,))
             updated_setup = cursor.fetchone()
 
             cursor.close()
             db_connection.close()
 
             if not updated_setup:
-                api.abort(404, "Updated setup not found")
+                api.abort(404, "Updated TimeConfig not found")
 
             return updated_setup, 200
 
         except Exception as e:
             cursor.close()
             db_connection.close()
-            api.abort(400, f"Failed to update setup record: {e}")
+            api.abort(400, f"Failed to update TimeConfig record: {e}")

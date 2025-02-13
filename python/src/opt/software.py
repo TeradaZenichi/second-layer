@@ -1,6 +1,9 @@
 import os
 import requests
 
+NOTIFICATION = os.environ.get('NOTIFICATION', "TRUE")
+
+
 def is_running_in_docker():
     try:
         with open('/proc/1/cgroup', 'rt') as f:

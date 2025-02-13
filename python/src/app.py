@@ -21,13 +21,13 @@ app.register_blueprint(blueprint)
 def send_swagger_static(path):
     return send_from_directory('swaggerui', path)
 
-@cron(-NOTIFY, -1, -1, -1, -1)
-def print_ok(num):
-    print("OK", num, datetime.now())
+#@cron(-NOTIFY, -1, -1, -1, -1)
+#def print_ok(num):
+#    print("OK", num, datetime.now())
 
 @cron(-INTERVAL, -1, -1, -1, -1)
 def print_opt(num):
-    print('Running optimization', num, datetime.now())
+    print('Running optimization - v4.2.1 ', num, datetime.now())
     opt.cron_function()
 
 

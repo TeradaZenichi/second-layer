@@ -2,7 +2,7 @@ version: '3'
 
 services:
   python:
-    image: zenichi/second-layer-python:3.4.2
+    image: zenichi/second-layer-python:4.5.1
     build: ./python
     ports:
       - "48080:8080"
@@ -12,13 +12,18 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_HOST=${MYSQL_HOST}
+      - PLATMOBLE_USER=${PLATMOBLE_USER}
+      - PLATMOBLE_PASSWORD=${PLATMOBLE_PASSWORD}
+      - PYTHON_ENV=${PYTHON_ENV}
+      - SECURITY_MODE=${SECURITY_MODE}
+      - NOTIFICATION_MODE=${NOTIFICATION_MODE}
+      - TZ=America/Sao_Paulo
     volumes:
       - python_data:/var/lib/python
 
   phpmyadmin:
     image: zenichi/second-layer-phpmyadmin:3.0.1
     build: ./phpmyadmin
-    container_name: phpmyadmin
     environment:
       PMA_HOST: ${PMA_HOST}
       PMA_PORT: ${PMA_PORT}
@@ -37,10 +42,10 @@ services:
   mysql:
     image: zenichi/second-layer-mysql:3.0.1
     build: ./mysql
-    container_name: mysql_db
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_HOST=${MYSQL_HOST}
     ports:
       - "43306:3306"
     volumes:
@@ -53,7 +58,6 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
-    container_name: nginx
     ports:
       - "40080:80"
     depends_on:
